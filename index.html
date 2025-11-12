@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YouTube Hate Speech Detector</title>
+    <style>
+        /* Reset and basic styles */
+        body {
+            background: #121212;
+            color: #eee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #1e1e1e;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            width: 100%;
+            max-width: 700px;
+            text-align: center;
+        }
+        h2 {
+            margin-bottom: 20px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: #4caf50;
+        }
+        form {
+            margin-bottom: 30px;
+        }
+        input[type="text"] {
+            width: 70%;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 6px 0 0 6px;
+            font-size: 1rem;
+            outline: none;
+        }
+        input[type="text"]:focus {
+            box-shadow: 0 0 8px #4caf50aa;
+        }
+        input[type="submit"] {
+            padding: 12px 25px;
+            border: none;
+            background: #4caf50;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 0 6px 6px 0;
+            transition: background-color 0.3s ease;
+        }
+        input[type="submit"]:hover {
+            background: #43a047;
+            box-shadow: 0 0 10px #43a047cc;
+        }
+        #loader {
+            display: none;
+            margin: 20px auto;
+            border: 6px solid #555;
+            border-top: 6px solid #4caf50;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #loader.active {
+            display: block;
+            opacity: 1;
+        }
+        @keyframes spin {
+            0%   { transform: rotate(0deg);}
+            100% { transform: rotate(360deg);}
+        }
+
+        /* Results Section */
+        .results {
+            animation: fadeIn 1s ease forwards;
+            margin-top: 30px;
+            text-align: left;
+        }
+        @keyframes fadeIn {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+        .summary {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 20px;
+        }
+        .summary div {
+            background: #333;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            min-width: 150px;
+            text-align: center;
+            box-shadow: 0 0 10px #000;
+        }
+        .hate {
+            background: #e53935;
+            box-shadow: 0 0 10px #e5393566;
+        }
+        .non-hate {
+            background: #43a047;
+            box-shadow: 0 0 10px #43a04766;
+        }
+        img.piechart {
+            display: block;
+            margin: 0 auto 20px;
+            max-width: 300px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px #4caf5080;
+        }
+        a.download-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 18px;
+            background: #2196f3;
+            color: white;
+            text-decoration: none;
+            font-weight: 700;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px #2196f3aa;
+            transition: background-color 0.3s ease;
+        }
+        a.download-link:hover {
+            background: #1976d2;
+            box-shadow: 0 0 15px #1976d2cc;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 15px #0008;
+            background: #222;
+        }
+        th, td {
+            padding: 12px 15px;
+            color: #eee;
+        }
+        th {
+            background: #333;
+            font-weight: 700;
+            text-align: left;
+        }
+        tbody tr:nth-child(even) {
+            background: #2a2a2a;
+        }
+        tbody tr:hover {
+            background: #444;
+            transition: background-color 0.3s ease;
+        }
+
+        /* Label colors */
+        .label-hate {
+            background-color: #e53935;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            display: inline-block;
+        }
+        .label-non-hate {
+            background-color: #43a047;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            display: inline-block;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            input[type="text"] {
+                width: 100%;
+                border-radius: 6px 6px 0 0;
+                margin-bottom: 10px;
+            }
+            input[type="submit"] {
+                width: 100%;
+                border-radius: 0 0 6px 6px;
+            }
+            .summary {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>YouTube Hate Speech Detector</h2>
+        <form method="POST" onsubmit="showSpinner()">
+            <input type="text" name="video_url" placeholder="Enter YouTube video URL" required /><br><br>
+            <input type="submit" value="Analyze Comments" />
+            <form action="/reset" method="get" style="margin-top:10px;">
+    <button type="submit">Reset</button>
+</form>
+        </form>
+        <div id="loader"></div>
+
+        {% if error %}
+            <p style="color:#ff5252; font-weight:bold;">{{ error }}</p>
+        {% endif %}
+
+        {% if results %}
+            <div class="results">
+                <div class="summary">
+                    <div class="hate">Total Hate Speech: {{ hate_count }}</div>
+                    <div class="non-hate">Total Non-Hate Speech: {{ non_hate_count }}</div>
+                </div>
+                <img class="piechart" src="{{ url_for('static', filename='piechart.png') }}" alt="Pie Chart" />
+                <a class="download-link" href="/download" target="_blank">📥 Download Results as CSV</a>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Comment</th>
+                            <th>Label</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in results %}
+                            <tr>
+                                <td>{{ row.text }}</td>
+                                <td>
+                                    {% if row.label == 'Hate Speech' %}
+                                        <span class="label-hate">Hate Speech</span>
+                                    {% else %}
+                                        <span class="label-non-hate">Non-Hate Speech</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function showSpinner() {
+            const loader = document.getElementById('loader');
+            loader.classList.add('active');
+        }
+    </script>
+</body>
+</html>
